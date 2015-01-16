@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2014 the original author or authors.
+ * Copyright 2011-2015 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,6 +54,7 @@ import org.springframework.data.annotation.Version;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
+import org.springframework.data.geo.Point;
 import org.springframework.data.mapping.model.MappingException;
 import org.springframework.data.mongodb.InvalidMongoDbApiUsageException;
 import org.springframework.data.mongodb.MongoDbFactory;
@@ -62,6 +63,9 @@ import org.springframework.data.mongodb.core.convert.DbRefResolver;
 import org.springframework.data.mongodb.core.convert.DefaultDbRefResolver;
 import org.springframework.data.mongodb.core.convert.LazyLoadingProxy;
 import org.springframework.data.mongodb.core.convert.MappingMongoConverter;
+import org.springframework.data.mongodb.core.geo.GeoJson;
+import org.springframework.data.mongodb.core.index.GeoSpatialIndexType;
+import org.springframework.data.mongodb.core.index.GeoSpatialIndexed;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.index.Index.Duplicates;
 import org.springframework.data.mongodb.core.index.IndexField;
@@ -189,6 +193,8 @@ public class MongoTemplateTests {
 		template.dropCollection(DocumentWithDBRefCollection.class);
 		template.dropCollection(SomeContent.class);
 		template.dropCollection(SomeTemplate.class);
+		template.dropCollection(DocumentWithPropertyStoredInGeoJsonFormat.class);
+		template.dropCollection(DocumentWithPropertyUsingGeoJsonType.class);
 	}
 
 	@Test
@@ -2751,6 +2757,41 @@ public class MongoTemplateTests {
 		assertThat(template.findAll(DBObject.class, "collection"), hasSize(0));
 	}
 
+	/**
+	 * @see DATAMONGO-1137
+	 */
+	@Test
+	public void shouldSaveAndRetrieveDocumentWithPropertyThatWillBeStoredInGeoJsonFormatCorrectly() {
+
+		DocumentWithPropertyStoredInGeoJsonFormat obj = new DocumentWithPropertyStoredInGeoJsonFormat();
+		obj.id = "foo";
+		obj.geoJson = new Point(100, 50);
+
+		template.save(obj);
+
+		DocumentWithPropertyStoredInGeoJsonFormat result = template.findOne(query(where("id").is("foo")),
+				DocumentWithPropertyStoredInGeoJsonFormat.class);
+		assertThat(result.geoJson, equalTo(obj.geoJson));
+	}
+
+	/**
+	 * @see DATAMONGO-1137
+	 */
+	@Test
+	public void shouleSaveAndRetrieveDocumentWithGeoJsonTypeCorrectly() {
+
+		DocumentWithPropertyUsingGeoJsonType obj = new DocumentWithPropertyUsingGeoJsonType();
+		obj.id = "foo";
+		obj.geoJson = GeoJson.point(100, 50);
+
+		template.save(obj);
+
+		DocumentWithPropertyUsingGeoJsonType result = template.findOne(query(where("id").is("foo")),
+				DocumentWithPropertyUsingGeoJsonType.class);
+
+		assertThat(result.geoJson, equalTo(obj.geoJson));
+	}
+
 	static class DoucmentWithNamedIdField {
 
 		@Id String someIdKey;
@@ -3018,4 +3059,17 @@ public class MongoTemplateTests {
 		@org.springframework.data.mongodb.core.mapping.DBRef SomeContent dbrefContent;
 		SomeContent normalContent;
 	}
+
+	static class DocumentWithPropertyStoredInGeoJsonFormat {
+
+		String id;
+		@GeoSpatialIndexed(type = GeoSpatialIndexType.GEO_2DSPHERE) Point geoJson;
+	}
+
+	static class DocumentWithPropertyUsingGeoJsonType {
+
+		String id;
+		GeoJson<Point> geoJson;
+	}
+
 }

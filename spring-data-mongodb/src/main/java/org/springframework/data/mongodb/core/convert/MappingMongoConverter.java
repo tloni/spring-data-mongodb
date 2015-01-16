@@ -35,6 +35,7 @@ import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.data.convert.CollectionFactory;
 import org.springframework.data.convert.EntityInstantiator;
 import org.springframework.data.convert.TypeMapper;
+import org.springframework.data.geo.Point;
 import org.springframework.data.mapping.Association;
 import org.springframework.data.mapping.AssociationHandler;
 import org.springframework.data.mapping.PersistentPropertyAccessor;
@@ -51,6 +52,9 @@ import org.springframework.data.mapping.model.SpELContext;
 import org.springframework.data.mapping.model.SpELExpressionEvaluator;
 import org.springframework.data.mapping.model.SpELExpressionParameterValueProvider;
 import org.springframework.data.mongodb.MongoDbFactory;
+import org.springframework.data.mongodb.core.geo.GeoJson;
+import org.springframework.data.mongodb.core.index.GeoSpatialIndexType;
+import org.springframework.data.mongodb.core.index.GeoSpatialIndexed;
 import org.springframework.data.mongodb.core.mapping.MongoPersistentEntity;
 import org.springframework.data.mongodb.core.mapping.MongoPersistentProperty;
 import org.springframework.data.util.ClassTypeInformation;
@@ -420,6 +424,13 @@ public class MappingMongoConverter extends AbstractMongoConverter implements App
 				}
 
 				Object propertyObj = accessor.getProperty(prop);
+
+				if (prop.isGeometry()) {
+					GeoSpatialIndexed indexed = prop.findAnnotation(GeoSpatialIndexed.class);
+					if (indexed != null && indexed.type().equals(GeoSpatialIndexType.GEO_2DSPHERE)) {
+						propertyObj = new GeoJson<Object>(propertyObj);
+					}
+				}
 
 				if (null != propertyObj) {
 
@@ -1112,6 +1123,12 @@ public class MappingMongoConverter extends AbstractMongoConverter implements App
 				return null;
 			}
 
+			if (property.isGeometry()) {
+				if (property.getRawType().equals(double[].class)) {
+					Point point = (Point) readValue(value, ClassTypeInformation.from(Point.class), path);
+					return (T) new double[] { point.getX(), point.getY() };
+				}
+			}
 			return readValue(value, property.getTypeInformation(), path);
 		}
 	}

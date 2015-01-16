@@ -149,4 +149,24 @@ public class GeoJson<T> {
 		return polygon(p0, p1, p2, p3, p0);
 	}
 
+	@Override
+	public int hashCode() {
+		return ObjectUtils.nullSafeHashCode(this.geometry);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (obj == null) {
+			return false;
+		}
+		if (!(obj instanceof GeoJson)) {
+			return false;
+		}
+		return ObjectUtils.nullSafeEquals(this.geometry, ((GeoJson<?>) obj).geometry);
+
+	}
+
 }

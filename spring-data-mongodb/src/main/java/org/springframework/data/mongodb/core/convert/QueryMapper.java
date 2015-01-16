@@ -29,6 +29,7 @@ import org.bson.types.ObjectId;
 import org.springframework.core.convert.ConversionException;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.data.geo.Circle;
 import org.springframework.data.mapping.Association;
 import org.springframework.data.mapping.PersistentEntity;
 import org.springframework.data.mapping.PropertyPath;
@@ -37,6 +38,7 @@ import org.springframework.data.mapping.context.MappingContext;
 import org.springframework.data.mapping.context.PersistentPropertyPath;
 import org.springframework.data.mapping.model.MappingException;
 import org.springframework.data.mongodb.core.geo.GeoJson;
+import org.springframework.data.mongodb.core.geo.Sphere;
 import org.springframework.data.mongodb.core.index.GeoSpatialIndexType;
 import org.springframework.data.mongodb.core.index.GeoSpatialIndexed;
 import org.springframework.data.mongodb.core.mapping.MongoPersistentEntity;
@@ -405,13 +407,13 @@ public class QueryMapper {
 
 			if (documentField != null && !documentField.requiresLegacyCoordinates()) {
 
-				Object geometry = converter.convertToMongoType(new GeoJson<Object>(((GeoCommand) source).getShape()),
-						entity == null ? null : entity.getTypeInformation());
+				Object shape = ((GeoCommand) source).getShape();
+				if (!(shape instanceof Circle) && !(shape instanceof Sphere)) {
+					Object geometry = converter.convertToMongoType(new GeoJson<Object>(shape),
+							entity == null ? null : entity.getTypeInformation());
 
-				if (geometry instanceof DBObject && ((DBObject) geometry).containsField("type")) {
 					return new BasicDBObject(documentField.name, new BasicDBObject("$geometry", geometry));
 				}
-				return new BasicDBObject(documentField.name, geometry);
 			}
 
 			return new BasicDBObject(documentField.name, converter.convertToMongoType(source,
